@@ -1,0 +1,8 @@
+{
+  "name": "arena-bundle-template",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.29"
+  }
+}
