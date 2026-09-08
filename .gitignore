@@ -1,0 +1,24 @@
+# secrets
+.env
+proxy/litellm.config.yaml
+# python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+# runtime data
+jobs/
+data/
+*.db
+*.sqlite3
+# private dataset must never live here
+datasets/private/
+# node
+node_modules/
+# os
+.DS_Store
+data/demo.sqlite3
+# tool state
+.omc/
+.claude/

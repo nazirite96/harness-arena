@@ -1,0 +1,11 @@
+# Pinned external tool versions. Change only via an ADR in docs/decisions/.
+# Verified 2026-09-07 against `harbor --help`, `npm view opencode-ai`, `docker manifest inspect`.
+HARBOR_VERSION=0.22.0
+OPENCODE_VERSION=1.18.29
+LITELLM_IMAGE=ghcr.io/berriai/litellm-database:v1.100.0
+POSTGRES_IMAGE=postgres:16
+# Harbor registry dataset "swebench-verified@1.0" is served from this repo/commit.
+SWEBENCH_DATASET_NAME=swebench-verified
+SWEBENCH_DATASET_VERSION=1.0
+HARBOR_DATASETS_REPO=https://github.com/laude-institute/harbor-datasets.git
+HARBOR_DATASETS_COMMIT=86723674f04e4209ac479d0fb75d9d9f44b4377e

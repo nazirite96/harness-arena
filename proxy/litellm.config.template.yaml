@@ -1,0 +1,23 @@
+# Rendered to proxy/litellm.config.yaml by `arena proxy render` (values from .env).
+# Exactly ONE model alias is exposed to participants.
+model_list:
+  - model_name: ${ARENA_MODEL_ALIAS}
+    litellm_params:
+      model: ${ARENA_UPSTREAM_MODEL}
+      # api_key is resolved by LiteLLM from the container env (see docker-compose.yml)
+      api_key: os.environ/${ARENA_UPSTREAM_KEY_ENV}
+    model_info:
+      max_input_tokens: ${ARENA_MODEL_CONTEXT}
+      max_output_tokens: ${ARENA_MODEL_OUTPUT}
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  # Full prompts/responses are stored for operator review (stated in docs/rules.md).
+  store_prompts_in_spend_logs: true
+
+litellm_settings:
+  drop_params: true
+  # Never fall back to another model: every team must hit the same upstream.
+  num_retries: 2
+  request_timeout: 600
