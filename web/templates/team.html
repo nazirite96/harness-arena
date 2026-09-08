@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% block title %}{{ team.name }} · Harness Arena{% endblock %}{% block body %}
+<h2 style="margin:8px 0">{{ team.name }}</h2>
+{% if message %}<div class="card"><pre>{{ message }}</pre></div>{% endif %}
+<div class="card"><b>dev 예산</b> ${{ '%.0f' % team.dev_budget_usd }} · 사용 {% if spend is not none %}${{ '%.2f' % spend }} · 잔액 <b>${{ '%.2f' % (team.dev_budget_usd - spend) }}</b>{% else %}<span class="muted">조회 불가</span>{% endif %}</div>
+<div class="card"><h3 style="margin-top:0">제출</h3>
+<form method="post" action="/team/{{ token }}/submit">
+<input name="repo_url" placeholder="https://github.com/org/repo.git" required>
+<input name="commit_sha" placeholder="commit SHA" required>
+<select name="channel"><option value="dev">dev (즉시 실행, 팀 예산)</option><option value="official">official (하루 1회, 22:00 KST 마감)</option></select>
+<button>제출</button></form></div>
+<div class="card"><h3 style="margin-top:0">제출 이력</h3><div class="tablewrap"><table>
+<tr><th>#</th><th>채널</th><th>커밋</th><th>상태</th><th>시각</th></tr>
+{% for s in subs %}<tr><td>{{ s.id }}</td><td>{{ s.channel }}</td><td><code>{{ s.commit_sha[:7] }}</code></td><td>{{ s.status }}</td><td class="muted">{{ s.submitted_at[:16] }}</td></tr>{% endfor %}
+</table></div></div>
+<h3>실행 결과</h3>
+{% for r in runs %}
+<div class="card">
+<div><b>{{ r.dataset }}</b> · {{ r.job_name }} · <span class="badge">{{ r.status }}</span>
+{% if r.n_tasks %} · 해결 {{ r.n_resolved }}/{{ r.n_tasks }}{% endif %}{% if r.cost_usd is not none %} · ${{ '%.2f' % r.cost_usd }}{% endif %}
+<span class="muted">· {{ (r.finished_at or r.started_at or '')[:16] }}</span></div>
+{% if r.error %}<pre class="bad">{{ r.error }}</pre>{% endif %}
+<div class="grid" style="margin-top:8px">
+{% for t in r.trials %}
+<a class="cell {{ 'p' if t.reward and t.reward >= 1 else ('e' if t.exception_type else 'f') }}" title="{{ t.task_id }} · reward {{ t.reward }} · ${{ '%.3f' % (t.cost_usd or 0) }}{% if t.exception_type %} · {{ t.exception_type }}{% endif %}"
+   {% if t.trajectory_path %}href="/trajectory/{{ token }}/{{ r.id }}/{{ t.trial_name }}"{% endif %}>{{ loop.index }}</a>
+{% endfor %}</div>
+<details><summary>문제별 결과</summary><div class="tablewrap"><table><tr><th>task</th><th>reward</th><th>비용</th><th>시간</th><th>오류</th><th>궤적</th></tr>
+{% for t in r.trials %}<tr><td>{{ t.task_id }}</td><td>{{ t.reward }}</td><td>${{ '%.3f' % (t.cost_usd or 0) }}</td><td>{{ ('%.1f분' % (t.duration_sec/60)) if t.duration_sec else '–' }}</td><td class="muted">{{ t.exception_type or '' }}</td>
+<td>{% if t.trajectory_path %}<a href="/trajectory/{{ token }}/{{ r.id }}/{{ t.trial_name }}">보기</a>{% endif %}</td></tr>{% endfor %}</table></div></details>
+</div>
+{% else %}<p class="muted">아직 실행이 없습니다.</p>{% endfor %}
+{% endblock %}

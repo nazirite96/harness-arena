@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block body %}
+<div class="card"><h3>팀 페이지</h3><p class="muted">운영진이 배포한 팀 토큰을 입력하세요.</p>
+<form onsubmit="location.href='/team/'+encodeURIComponent(this.t.value);return false"><input name="t" placeholder="tm_…" autocomplete="off"><button>열기</button></form></div>
+{% endblock %}

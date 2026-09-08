@@ -1,0 +1,135 @@
+{% extends "base.html" %}{% block title %}참가 방법 · {{ event_name }}{% endblock %}{% block body %}
+<div class="hero">
+<h1>{{ event_name }} 참가 방법</h1>
+<p>팀이 <b>opencode 설정 번들</b>(에이전트 프롬프트 · 훅 · 커스텀 툴 · 지침)을 만들어 제출하면, 서버가 <b>고정 모델·고정 버전</b>으로 SWE-bench Verified 문제를 자동 실행·채점하고 리더보드에 올립니다. 여러분이 바꾸는 것은 <b>하네스</b>이고, 모델과 도구 루프는 모두 같습니다.</p>
+<p style="margin-top:8px"><span class="pill">opencode {{ opencode_version }}</span><span class="pill">모델 {{ model_alias }}</span><span class="pill">문제당 {{ timeout_min }}분 · ${{ cost_cap }}</span><span class="pill">dev 예산 ${{ dev_budget }}/팀</span></p>
+</div>
+
+<h2>한눈에 보기</h2>
+<div class="card kv">
+<b>제출물</b><span>git 저장소의 특정 커밋 (번들 루트에 <code>arena.yaml</code>)</span>
+<b>문제 셋</b><span>Public 50 (공개, 일일 리더보드) · Private 100 (비공개, 최종 채점) · Dev 5 (즉시 실행용, Public의 부분집합)</span>
+<b>지표</b><span>해결률 = 테스트를 통과한 문제 비율. 동점이면 문제당 평균 비용이 낮은 팀 우위</span>
+<b>최종 점수</b><span><span class="formula">0.7 × Private 해결률 + 0.3 × 발표 점수</span> (Private는 2회 실행 평균)</span>
+<b>제출 제한</b><span>공식 제출 하루 1회, <b>22:00 KST 마감</b> → 23:00 배치 실행 → 다음날 08:00 전 리더보드 갱신. dev 실행은 팀 예산 내 무제한</span>
+<b>참조 행</b><span><code>baseline/opencode-vanilla</code>, <code>reference/oh-my-opencode</code> — 순위에 들지 않는 비교 기준</span>
+</div>
+
+<h2>진행 순서</h2>
+<div class="steps">
+<div class="stepcard"><h3>팀 토큰과 프록시 키 받기</h3>
+<p>운영진에게서 <b>팀 토큰</b> <code>tm_…</code>(제출·팀 페이지용)과 <b>프록시 키</b> <code>sk-…</code>(로컬 opencode가 대회 모델을 쓰기 위한 키, 팀 dev 예산에서 차감)를 받습니다. 못 받았으면 {{ contact }}.</p></div>
+
+<div class="stepcard"><h3>opencode 고정 버전 설치</h3>
+<pre>npm install -g opencode-ai@{{ opencode_version }}
+opencode --version</pre>
+<p class="muted">대회 서버도 같은 버전을 씁니다. 다른 버전으로 개발하면 훅 API가 달라 동작이 다를 수 있습니다.</p></div>
+
+<div class="stepcard"><h3>스타터 킷 복사 + 프록시 연결</h3>
+<pre>git clone {{ starter_kit_url or '<스타터 킷 주소>' }} my-bundle</pre>
+<p><code>bundle/</code>가 여러분의 번들입니다. 로컬에서 대회 모델을 쓰려면 <b>번들 밖</b>의 개인 설정 <code>~/.config/opencode/opencode.json</code>에 아래를 추가합니다. (번들 안에 넣으면 검증에서 거부됩니다.)</p>
+<pre>{
+  "model": "arena/{{ model_alias }}",
+  "provider": {
+    "arena": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": { "baseURL": "{{ proxy_url }}", "apiKey": "{env:ARENA_API_KEY}" },
+      "models": { "{{ model_alias }}": { "name": "{{ model_alias }}", "tool_call": true,
+                  "limit": { "context": 200000, "output": 32000 } } }
+    }
+  }
+}</pre>
+<pre>export ARENA_API_KEY=sk-…   # 받은 프록시 키</pre></div>
+
+<div class="stepcard"><h3>로컬에서 번들 시험</h3>
+<p>아무 파이썬 저장소에서 번들을 적용해 TUI로 대화해 보고, 대회와 같은 헤드리스 방식으로도 돌려 봅니다.</p>
+<pre>cd /path/to/some-python-repo
+cp -r /path/to/my-bundle/bundle/.opencode . &amp;&amp; cp /path/to/my-bundle/bundle/AGENTS.md .
+opencode --agent main                    # TUI
+opencode run --agent main "README 오타를 찾아 고쳐줘"   # 헤드리스</pre>
+<p class="muted">훅이 살아 있으면 <code>[arena-hooks] …</code> 메시지가 보입니다.</p></div>
+
+<div class="stepcard"><h3>번들 구조 지키기 (제출 계약)</h3>
+<pre>bundle/
+  arena.yaml                team, main_agent, description   (필수)
+  opencode.json             instructions 등 (model / provider / permission 금지)
+  AGENTS.md                 저장소 루트(/testbed)에 복사되는 지침
+  .opencode/agents/*.md     에이전트 정의. main_agent 파일 필수
+  .opencode/plugins/*.ts    훅·커스텀 툴 플러그인
+  .opencode/tools/*.ts      커스텀 툴 (파일명 = 툴 이름)
+  .opencode/skills/**       스킬 (선택)
+  package.json              플러그인 의존성 (선택)</pre>
+<ul>
+<li>폴더 이름은 <b>복수형</b>(<code>agents/ plugins/ tools/</code>)만 인정</li>
+<li>5MB 이하 · 바이너리 금지 · npm 플러그인 참조 금지 · 완성형 에이전트 플러그인(oh-my-opencode 등) 의존성 금지</li>
+<li><code>model</code>, <code>provider</code>, <code>permission</code>은 운영진이 덮어씁니다. 모든 에이전트(서브에이전트 포함)는 같은 모델을 씁니다</li>
+<li>문제 ID(<code>django__django-12345</code> 같은)를 하드코딩하면 거부됩니다</li>
+</ul></div>
+
+<div class="stepcard"><h3>검증하기</h3>
+<pre>arena validate ./bundle</pre>
+<p>항목별로 한국어 오류가 나옵니다. <b>[통과]</b>가 나와야 제출됩니다. 팀 페이지의 제출 폼도 같은 검증을 거칩니다.</p></div>
+
+<div class="stepcard"><h3>dev 실행 요청 (즉시 · Dev 5문제 · 팀 예산 차감)</h3>
+<pre>git add -A &amp;&amp; git commit -m "hooks: block edit before repro" &amp;&amp; git push
+arena submit https://github.com/&lt;team&gt;/&lt;repo&gt;.git $(git rev-parse HEAD) --channel dev</pre>
+<p>또는 <a href="/team">팀 페이지</a>의 폼에 저장소 URL과 커밋 SHA를 넣습니다. 끝나면 팀 페이지에 문제별 결과와 궤적 링크가 뜹니다.</p></div>
+
+<div class="stepcard"><h3>공식 제출 (하루 1회 · 22:00 KST 마감)</h3>
+<pre>arena submit https://github.com/&lt;team&gt;/&lt;repo&gt;.git &lt;sha&gt; --channel official</pre>
+<p>23:00 배치에서 Public 50문제를 실행하고 아침 <a href="/">리더보드</a>에 반영됩니다. 하루에 두 번 내면 두 번째는 거부됩니다.</p></div>
+
+<div class="stepcard"><h3>궤적 읽고 개선하기</h3>
+<p>팀 페이지 → 실행 → 셀 클릭. 단계별 모델 메시지, 툴 호출과 인자, 툴 출력, 토큰·비용이 보입니다. 확인할 것:</p>
+<ul>
+<li>재현 없이 편집했는가 · 종료 전 테스트를 실행했는가</li>
+<li>같은 명령을 반복하는가(doom loop) · 어디서 시간과 예산을 다 썼는가</li>
+<li>서브에이전트가 편집까지 해서 컨텍스트를 잃었는가</li>
+</ul>
+<p class="muted">발표(30%)의 핵심은 <b>어떤 훅/프롬프트 변경이 어떤 궤적 변화를 만들었는지</b>를 궤적으로 증명하는 것입니다.</p></div>
+</div>
+
+<h2>일정</h2>
+<div class="card tablewrap"><table class="timeline">
+{% for d, what in schedule %}<tr><td>{{ d }}{% if d_dates and d in d_dates %} <span class="muted">({{ d_dates[d] }})</span>{% endif %}</td><td>{{ what }}</td></tr>{% endfor %}
+</table></div>
+
+<h2>발표 채점 루브릭 (30점)</h2>
+<div class="card kv">
+<b>10</b><span>실패 패턴 분석 — 어떤 유형의 문제에서 왜 실패했는가</span>
+<b>10</b><span>변경 → 효과의 인과를 궤적으로 증명</span>
+<b>5</b><span>비용 효율 · 재현성</span>
+<b>5</b><span>전달력</span>
+</div>
+
+<h2>자주 나오는 실패 패턴</h2>
+<div class="card"><ol>
+<li>재현 없이 추측으로 수정 → 관련 없는 파일 변경, 테스트 실패</li>
+<li>전체 테스트 스위트 실행 → {{ timeout_min }}분 시간 초과</li>
+<li>서브에이전트에게 편집을 맡김 → 컨텍스트 유실</li>
+<li>종료 전 테스트 미실행 → <code>session.idle</code> 훅으로 재프롬프트하면 개선</li>
+<li><code>pip install</code>·외부 접근 시도 → 네트워크가 차단되어 시간만 낭비</li>
+</ol></div>
+
+<h2>규칙 요약</h2>
+<div class="card"><ol>
+<li>제출물은 제출 계약을 따르는 opencode 설정 번들만 인정</li>
+<li>기존 에이전트 제품·플러그인을 통째로 제출 금지. 일부 차용은 출처 표기 시 허용</li>
+<li>번들을 만드는 데 Claude Code 등 코딩 에이전트 사용은 자유</li>
+<li>문제 ID·레포·이슈 힌트 하드코딩 금지 · 외부 네트워크 접근 시도 금지</li>
+<li>공식 제출 하루 1회(22:00 KST) · 코드 프리즈 D9 18:00</li>
+<li>최종 순위 = Private 70% + 발표 30% · 상위 3팀은 코드 리뷰·재현 확인 후 확정</li>
+<li>프록시 로그(프롬프트·응답 포함)는 운영진이 운영·교육 목적으로 열람</li>
+<li>위반 시 해당 제출 무효, 반복 시 실격</li>
+</ol></div>
+
+<h2>FAQ</h2>
+<div class="card">
+<details><summary>다른 모델을 쓸 수 있나요?</summary><p>아니요. 모든 팀이 같은 모델 하나를 씁니다. 번들에 model을 적어도 덮어써집니다.</p></details>
+<details><summary>dev 예산이 다 떨어지면?</summary><p>dev 실행 요청이 거부됩니다. 잔액은 팀 페이지에 표시됩니다. 공식 제출은 운영진 예산으로 돌아가므로 영향이 없습니다.</p></details>
+<details><summary>Private 문제는 언제 볼 수 있나요?</summary><p>최종 발표 전까지 어떤 페이지에도 나오지 않습니다. Public과 겹치지 않고 레포 분포는 비슷합니다.</p></details>
+<details><summary>번들 안에서 인터넷을 쓸 수 있나요?</summary><p>실행 중 컨테이너는 프록시만 접근할 수 있습니다. 검색·웹페치 도구는 실패합니다. 훅으로 미리 꺼 두는 것을 권합니다.</p></details>
+<details><summary>궤적은 다른 팀도 보나요?</summary><p>팀은 자기 궤적만 봅니다. 운영진은 전체를 봅니다.</p></details>
+</div>
+<p class="muted">문의: {{ contact }}{% if public_url %} · 리더보드 {{ public_url }}{% endif %}</p>
+{% endblock %}

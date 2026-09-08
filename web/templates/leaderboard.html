@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block title %}리더보드 · {{ event_name }}{% endblock %}{% block body %}
+{% if kiosk %}<meta http-equiv="refresh" content="60">{% endif %}
+<div class="hero" style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+<h1 style="margin:0">{{ event_name }} 리더보드</h1>
+<span class="muted">Public {{ n_public }}문제 해결률 · {{ now_kst }} KST 기준{% if kiosk %} · 60초마다 갱신{% endif %}</span>
+<span style="margin-left:auto"><a href="/guide">참가 방법 →</a>{% if not kiosk %} · <a href="/?kiosk=1" class="muted">전체화면</a>{% endif %}</span>
+</div>
+<div class="tablewrap"><table>
+<tr><th>순위</th><th>팀</th><th>Public 해결률</th><th>Δ</th><th>해결/{{ n_public }}</th><th>비용/문제</th><th>시간/문제</th><th>제출</th><th>커밋</th><th>갱신</th></tr>
+{% macro row(r, ref) %}
+<tr class="{{ 'ref' if ref }}">
+<td>{% if ref %}—{% else %}<span class="big">{{ r.rank }}</span>{% endif %}</td>
+<td>{{ r.team_name }}{% if ref %} <span class="badge">참조</span>{% endif %}</td>
+<td><b>{{ '%.1f' % r.rate }}%</b></td>
+<td>{% if r.delta is none %}<span class="muted">–</span>{% elif r.delta > 0 %}<span class="ok">▲{{ r.delta }}</span>{% elif r.delta < 0 %}<span class="bad">▼{{ -r.delta }}</span>{% else %}<span class="muted">0</span>{% endif %}</td>
+<td>{{ r.n_resolved }}/{{ r.n_tasks }}</td>
+<td>${{ '%.3f' % r.avg_cost }}</td>
+<td>{{ ('%.1f분' % r.avg_time_min) if r.avg_time_min else '–' }}</td>
+<td>{{ r.n_submissions }}</td>
+<td><code>{{ (r.bundle_commit or '')[:7] }}</code></td>
+<td class="muted">{{ (r.finished_at or '')[5:16] }}</td>
+</tr>
+{% endmacro %}
+{% for r in refs %}{{ row(r, true) }}{% endfor %}
+{% for r in ranked %}{{ row(r, false) }}{% endfor %}
+{% if not ranked and not refs %}<tr><td colspan="10" class="muted">아직 완료된 실행이 없습니다. 첫 공식 제출 다음날 아침에 갱신됩니다.</td></tr>{% endif %}
+</table></div>
+<p class="muted" style="margin-top:14px">참조 행(바닐라 opencode · oh-my-opencode)은 순위에 포함되지 않습니다. 동점은 문제당 평균 비용이 낮은 팀이 우위. Δ는 직전 공식 제출 대비 해결 수 변화. 최종 순위는 비공개 Private 100문제(70%)와 발표(30%)로 결정됩니다.</p>
+{% endblock %}

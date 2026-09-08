@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block title %}{{ trial.task_id }} 궤적{% endblock %}{% block body %}
+<h2 style="margin:8px 0">{{ trial.task_id }}</h2>
+<p class="muted">{{ run.job_name }} · reward {{ trial.reward }} · ${{ '%.3f' % (trial.cost_usd or 0) }} · 단계 {{ traj.steps|length }}
+{% if traj.final_metrics %} · 토큰 in {{ traj.final_metrics.total_prompt_tokens }} / out {{ traj.final_metrics.total_completion_tokens }}{% endif %}</p>
+{% for s in traj.steps %}
+<div class="step {{ s.source }}">
+<div class="meta">#{{ s.step_id }} · {{ s.source }}{% if s.timestamp %} · {{ s.timestamp[11:19] }}{% endif %}{% if s.metrics %} · ${{ '%.4f' % (s.metrics.cost_usd or 0) }} · {{ s.metrics.prompt_tokens }}→{{ s.metrics.completion_tokens }} tok{% endif %}</div>
+{% if s.reasoning_content %}<details><summary>추론</summary><pre>{{ s.reasoning_content }}</pre></details>{% endif %}
+{% if s.message %}<pre>{{ s.message }}</pre>{% endif %}
+{% for tc in s.tool_calls or [] %}
+<details open><summary>🔧 {{ tc.function_name }}</summary><pre>{{ tc.arguments | tojson(indent=1) }}</pre>
+{% for o in (s.observation.results if s.observation else []) if o.source_call_id == tc.tool_call_id %}<pre class="muted">{{ o.content[:4000] }}{% if o.content|length > 4000 %}… ({{ o.content|length }} chars){% endif %}</pre>{% endfor %}
+</details>
+{% endfor %}
+</div>
+{% endfor %}
+{% endblock %}

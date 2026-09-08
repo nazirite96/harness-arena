@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block body %}
+<h2>운영진</h2>
+<div class="card"><h3 style="margin-top:0">큐</h3>dev {{ queued.dev|length }} · official {{ queued.official|length }}
+{% for s in queued.official %}<div class="muted">#{{ s.id }} team {{ s.team_id }} {{ s.commit_sha[:7] }} → {{ s.official_day }}</div>{% endfor %}</div>
+{% for t in teams %}
+<div class="card"><b>{{ t.name }}</b>{% if t.is_reference %} <span class="badge">참조</span>{% endif %} · 토큰 <code>{{ t.token }}</code>
+<div class="tablewrap"><table><tr><th>run</th><th>dataset</th><th>status</th><th>resolved</th><th>cost</th><th>commit</th><th>finished</th><th>error</th></tr>
+{% for r in runs_by_team[t.id] %}<tr><td><a href="/team/{{ t.token }}?admin={{ admin }}">{{ r.job_name }}</a></td><td>{{ r.dataset }}</td><td>{{ r.status }}</td><td>{{ r.n_resolved }}/{{ r.n_tasks }}</td><td>{{ r.cost_usd }}</td><td><code>{{ (r.bundle_commit or '')[:7] }}</code></td><td class="muted">{{ (r.finished_at or '')[:16] }}</td><td class="bad">{{ (r.error or '')[:80] }}</td></tr>{% endfor %}
+</table></div></div>
+{% endfor %}
+{% endblock %}
